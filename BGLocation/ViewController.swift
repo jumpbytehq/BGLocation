@@ -31,6 +31,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
     var distanceFilterEnabled = true
     
     var logFileEnabled = false;
+    var detailLog = true;
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -49,7 +50,6 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
         
         // Accuracty is set to medium and will be adjusted later
         self.locationManager.desiredAccuracy = kCLLocationAccuracyKilometer
-        
         self.locationManager.requestAlwaysAuthorization();
         
         // Significant Changes will be used later on for passive updates
@@ -74,6 +74,8 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
         isMoving = true
         self.locationManager.stopMonitoringSignificantLocationChanges()
         self.locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        self.locationManager.allowsBackgroundLocationUpdates = true // Must to set for iOS 9 and later
+        
         self.locationManager.startUpdatingLocation()
     }
     
@@ -95,6 +97,10 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
     }
     
     func locationManager(manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        if(detailLog){
+            showUpdateNotification(manager.location!.coordinate)
+        }
+        
         var meters : CLLocationDistance? = 0;
         
         // Check for Time Filter
@@ -180,6 +186,19 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
         if(logFileEnabled){
             // log the statement in a file to use later
         }
+    }
+    
+    func showUpdateNotification(let coordinate : CLLocationCoordinate2D?){
+        let notification = UILocalNotification()
+        notification.fireDate = NSDate(timeIntervalSinceNow: 1)
+        
+        if let loc = coordinate{
+            notification.alertBody = "Location Received lat: \(loc.latitude), lng: \(loc.longitude)"
+        }else{
+            notification.alertBody = "Location Update Received"
+        }
+        
+        UIApplication.sharedApplication().scheduleLocalNotification(notification)
     }
 }
 
