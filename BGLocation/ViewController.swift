@@ -13,6 +13,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
 
     let locationManager = CLLocationManager()
     var lastLocation: CLLocation?
+    var lastReceivedLocation: CLLocation?
     
     var debug: Bool = true
     var timer: NSTimer?
@@ -33,8 +34,12 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
     var logFileEnabled = false;
     var detailLog = true;
     
+    var postUpdateToServer = false
+    
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        // Start the service
         startService()
     }
 
@@ -98,8 +103,9 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
     
     func locationManager(manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         if(detailLog){
-            showUpdateNotification(manager.location!.coordinate)
+            showUpdateNotification(manager.location!)
         }
+        lastReceivedLocation = manager.location!
         
         var meters : CLLocationDistance? = 0;
         
@@ -116,10 +122,20 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
         
         // Distance Filter Login Here
         if !isMoving {
+            if let loc = lastLocation{
+                let currentLocation = CLLocation(latitude: manager.location!.coordinate.latitude, longitude: manager.location!.coordinate.longitude)
+                meters = loc.distanceFromLocation(currentLocation)
+                
+                if !validDistance(meters!) {
+                    log("Checking invalid distance for Movement Detection \(meters!)")
+                    return
+                }
+            }
+            
             isMoving = true
             self.startFrequentLocationUpdates()
             lastLocation = manager.location!
-            resetTimer()
+            
         }else{
             // Calculate distance from last saved location
             if let location = manager.location {
@@ -127,17 +143,12 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
                 meters = lastLocation!.distanceFromLocation(currentLocation)
             }
             
-            if distanceFilterEnabled {
-                // Check distance between last location and current location
-                // if that is above the distanceFilter
-                if meters == 0.0 || meters < distanceFilter{
-                    //log("Distance filter rejected \(meters)")
-                    return
-                }
+            if !validDistance(meters!) {
+                return
             }
-            
-            resetTimer()
         }
+        
+        resetTimer()
         
         log("Distance from last: \(meters!)");
         
@@ -147,18 +158,29 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
         }
     }
     
+    func validDistance(let meters: CLLocationDistance) -> Bool{
+        if distanceFilterEnabled {
+            return meters > distanceFilter
+        }else{
+            return true
+        }
+    }
+    
     func resetTimer(){
         if let t = timer{
             t.invalidate()
+        }else{
+            log("Stop Detection Timer Started")
         }
         
-        log("Stop Detection Timer Started")
         timer = NSTimer.scheduledTimerWithTimeInterval(stationaryTimeout, target: self, selector: Selector("timerFired"), userInfo: nil, repeats: false)
     }
     
     // Stop Frequent Updates
     func timerFired(){
         self.stopFrequentLocationUpdates()
+        lastLocation = lastReceivedLocation
+        timer = nil
     }
     
     func showNotification(let text: String){
@@ -188,17 +210,26 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
         }
     }
     
-    func showUpdateNotification(let coordinate : CLLocationCoordinate2D?){
+    func showUpdateNotification(let location : CLLocation?){
         let notification = UILocalNotification()
         notification.fireDate = NSDate(timeIntervalSinceNow: 1)
         
-        if let loc = coordinate{
-            notification.alertBody = "Location Received lat: \(loc.latitude), lng: \(loc.longitude)"
+        if let loc = location{
+            notification.alertBody = "Location Received lat: \(loc.coordinate.latitude), lng: \(loc.coordinate.longitude)"
         }else{
             notification.alertBody = "Location Update Received"
         }
         
         UIApplication.sharedApplication().scheduleLocalNotification(notification)
+    }
+    
+    
+    func postToServer(){
+        if !postUpdateToServer {
+            return
+        }
+        
+        // Post location data to server
     }
 }
 
