@@ -115,7 +115,9 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
             // or ignore the location
             let hour = getHour()
             if hour < timeFilterStart || hour > timeFilterStop {
-                log("Hour \(hour) out of range \(timeFilterStart)-\(timeFilterStop)")
+                let logStr = "Hour \(hour) out of range \(timeFilterStart)-\(timeFilterStop)"
+                log(logStr)
+                showNotification(logStr)
                 return
             }
         }
@@ -127,7 +129,9 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
                 meters = loc.distanceFromLocation(currentLocation)
                 
                 if !validDistance(meters!) {
-                    log("Checking invalid distance for Movement Detection \(meters!)")
+                    let logStr = "Checking distance for Movement Detection \(meters!)"
+                    log(logStr)
+                    showNotification(logStr)
                     return
                 }
             }
@@ -144,6 +148,8 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
             }
             
             if !validDistance(meters!) {
+                let logStr = "Checking distance for Movement Detection \(meters!)"
+                showNotification(logStr)
                 return
             }
         }
