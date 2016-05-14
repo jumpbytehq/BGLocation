@@ -12,9 +12,20 @@ import CoreLocation
 class ViewController: UIViewController, CLLocationManagerDelegate{
 
     let locationManager = CLLocationManager()
-    var lastLocation: CLLocation?;
-    var debug: Bool = true;
+    var lastLocation: CLLocation?
+    
+    var debug: Bool = true
     var timer: NSTimer?
+    var isMoving: Bool = false
+    
+    // Time based filters to ignore updates outside of the range
+    var timeFilterStart = 9
+    var timeFilterStop = 18
+    var timeFilterEnabled = false
+    
+    // Distance based filter to ignore updates inside of the distance
+    var distanceFilter: Double = 500
+    var distanceFilterEnabled = true
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -50,57 +61,93 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
         self.locationManager.stopMonitoringSignificantLocationChanges()
     }
     
+    // Stop Significant Changes, Update Accuracy and Start Location Updates
     func startFrequentLocationUpdates(){
-        //self.locationManager.startUpdatingLocation()
+        print("Frequent Update Started");
+        isMoving = true
+        self.locationManager.stopMonitoringSignificantLocationChanges()
+        self.locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        self.locationManager.startUpdatingLocation()
     }
     
+    // Stop Location Updates, Update Accuracy and Start Significant Changes
     func stopFrequentLocationUpdates(){
-        //self.locationManager.stopUpdatingLocation()
+        print("Frequent Update Stopped");
+        isMoving = false
+        self.locationManager.stopUpdatingLocation()
+        self.locationManager.desiredAccuracy = kCLLocationAccuracyKilometer
+        self.locationManager.startMonitoringSignificantLocationChanges()
+    }
+    
+    func getHour() -> Int{
+        let calendar = NSCalendar.currentCalendar()
+        let components = calendar.components(NSCalendarUnit.Hour, fromDate:  NSDate())
+        return components.hour
     }
     
     func locationManager(manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        // Distance Filter Login Here
-        self.startFrequentLocationUpdates()
+        var meters : CLLocationDistance? = 0;
         
+        // Check for Time Filter
+        if timeFilterEnabled {
+            // check whether current time is within the given time limit
+            // or ignore the location
+            let hour = getHour()
+            if hour < timeFilterStart || hour > timeFilterStop {
+                print("Hour \(hour) out of range \(timeFilterStart)-\(timeFilterStop)")
+                return
+            }
+        }
+        
+        // Distance Filter Login Here
+        if !isMoving {
+            isMoving = true
+            self.startFrequentLocationUpdates()
+            lastLocation = manager.location!
+        }else{
+            startStopDetectionTimer()
+            
+            if let location = manager.location {
+                let currentLocation = CLLocation(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+                meters = lastLocation!.distanceFromLocation(currentLocation)
+            }
+            
+            if distanceFilterEnabled {
+                // Check distance between last location and current location
+                // if that is above the distanceFilter
+                if meters < distanceFilter{
+                    return
+                }
+            }
+        }
+        
+        print("Distance from last: \(meters!)");
+        
+        lastLocation = manager.location
         if debug {
-            showNotification(manager.location!.coordinate);
+            showNotification(manager.location!.coordinate, meters: meters!);
         }
     }
     
-    // Receive Frequent Updates, reset timer on every udpate
-    func locationManager(manager: CLLocationManager, didUpdateToLocation newLocation: CLLocation, fromLocation oldLocation: CLLocation) {
-        print("Frequent Update: \(newLocation.coordinate.latitude), \(newLocation.coordinate.longitude)")
-        
+    func startStopDetectionTimer(){
         if let t = timer{
             t.invalidate()
         }
         
-        timer = NSTimer.scheduledTimerWithTimeInterval(60, target: self, selector: Selector("timerFired"), userInfo: nil, repeats: true)
-        
-        if debug {
-            showNotification(newLocation.coordinate);
-        }
+        timer = NSTimer.scheduledTimerWithTimeInterval(10, target: self, selector: Selector("timerFired"), userInfo: nil, repeats: false)
     }
     
     // Stop Frequent Updates
     func timerFired(){
-        print("Frequent Updates Stopped")
         self.stopFrequentLocationUpdates()
     }
     
-    func showNotification(let coordinate : CLLocationCoordinate2D){
+    func showNotification(let coordinate : CLLocationCoordinate2D, let meters: CLLocationDistance){
         print("Location updated: \(coordinate.latitude), \(coordinate.longitude)")
         let notification = UILocalNotification()
         notification.fireDate = NSDate(timeIntervalSinceNow: 1)
         
-        if lastLocation != nil {
-            let currentLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-            let meters:CLLocationDistance = lastLocation!.distanceFromLocation(currentLocation)
-            
-            notification.alertBody = "Latitude: \(coordinate.latitude), Longitude: \(coordinate.longitude), Disnance: \(meters)"
-        }else{
-            notification.alertBody = "Latitude: \(coordinate.latitude), Longitude: \(coordinate.longitude), Disnance: 0"
-        }
+        notification.alertBody = "Latitude: \(coordinate.latitude), Longitude: \(coordinate.longitude), Disnance: \(meters)"
         
         UIApplication.sharedApplication().scheduleLocalNotification(notification)
         
