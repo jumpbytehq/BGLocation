@@ -27,6 +27,8 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
     var distanceFilter: Double = 500
     var distanceFilterEnabled = true
     
+    var logFileEnabled = false;
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         startService()
@@ -63,7 +65,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
     
     // Stop Significant Changes, Update Accuracy and Start Location Updates
     func startFrequentLocationUpdates(){
-        print("Frequent Update Started");
+        log("Frequent Update Started");
         isMoving = true
         self.locationManager.stopMonitoringSignificantLocationChanges()
         self.locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
@@ -72,7 +74,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
     
     // Stop Location Updates, Update Accuracy and Start Significant Changes
     func stopFrequentLocationUpdates(){
-        print("Frequent Update Stopped");
+        log("Frequent Update Stopped");
         isMoving = false
         self.locationManager.stopUpdatingLocation()
         self.locationManager.desiredAccuracy = kCLLocationAccuracyKilometer
@@ -94,7 +96,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
             // or ignore the location
             let hour = getHour()
             if hour < timeFilterStart || hour > timeFilterStop {
-                print("Hour \(hour) out of range \(timeFilterStart)-\(timeFilterStop)")
+                log("Hour \(hour) out of range \(timeFilterStart)-\(timeFilterStop)")
                 return
             }
         }
@@ -107,11 +109,12 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
         }else{
             startStopDetectionTimer()
             
+            // Calculate distance from last saved location
             if let location = manager.location {
                 let currentLocation = CLLocation(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
                 meters = lastLocation!.distanceFromLocation(currentLocation)
             }
-            
+                        
             if distanceFilterEnabled {
                 // Check distance between last location and current location
                 // if that is above the distanceFilter
@@ -121,7 +124,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
             }
         }
         
-        print("Distance from last: \(meters!)");
+        log("Distance from last: \(meters!)");
         
         lastLocation = manager.location
         if debug {
@@ -143,7 +146,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
     }
     
     func showNotification(let coordinate : CLLocationCoordinate2D, let meters: CLLocationDistance){
-        print("Location updated: \(coordinate.latitude), \(coordinate.longitude)")
+        log("Location updated: \(coordinate.latitude), \(coordinate.longitude)")
         let notification = UILocalNotification()
         notification.fireDate = NSDate(timeIntervalSinceNow: 1)
         
@@ -152,6 +155,14 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
         UIApplication.sharedApplication().scheduleLocalNotification(notification)
         
         lastLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+    }
+    
+    func log(let logStr: String){
+        print("\(logStr)")
+        
+        if(logFileEnabled){
+            // log the statement in a file to use later
+        }
     }
 }
 
