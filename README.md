@@ -1,4 +1,6 @@
 # BGLocation
 iOS App to trigger location updates in background
 
-The app is in trial phase right now and will be integrated into a Swift/Cordova Plugin.
+It's an app right now but I am working on to convert it into a Cordova/PhoneGap plugin.
+
+
