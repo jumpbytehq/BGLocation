@@ -18,6 +18,9 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
     var timer: NSTimer?
     var isMoving: Bool = false
     
+    // Stationary Timeout
+    var stationaryTimeout:Double = 60;
+    
     // Time based filters to ignore updates outside of the range
     var timeFilterStart = 9
     var timeFilterStop = 18
@@ -66,6 +69,8 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
     // Stop Significant Changes, Update Accuracy and Start Location Updates
     func startFrequentLocationUpdates(){
         log("Frequent Update Started");
+        showNotification("Frequent Update Started");
+        
         isMoving = true
         self.locationManager.stopMonitoringSignificantLocationChanges()
         self.locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
@@ -75,6 +80,8 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
     // Stop Location Updates, Update Accuracy and Start Significant Changes
     func stopFrequentLocationUpdates(){
         log("Frequent Update Stopped");
+        showNotification("Frequent Update Stopped");
+        
         isMoving = false
         self.locationManager.stopUpdatingLocation()
         self.locationManager.desiredAccuracy = kCLLocationAccuracyKilometer
@@ -106,38 +113,41 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
             isMoving = true
             self.startFrequentLocationUpdates()
             lastLocation = manager.location!
+            resetTimer()
         }else{
-            startStopDetectionTimer()
-            
             // Calculate distance from last saved location
             if let location = manager.location {
                 let currentLocation = CLLocation(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
                 meters = lastLocation!.distanceFromLocation(currentLocation)
             }
-                        
+            
             if distanceFilterEnabled {
                 // Check distance between last location and current location
                 // if that is above the distanceFilter
-                if meters < distanceFilter{
+                if meters == 0.0 || meters < distanceFilter{
+                    //log("Distance filter rejected \(meters)")
                     return
                 }
             }
+            
+            resetTimer()
         }
         
         log("Distance from last: \(meters!)");
         
         lastLocation = manager.location
         if debug {
-            showNotification(manager.location!.coordinate, meters: meters!);
+            showLocationNotification(manager.location!.coordinate, meters: meters!);
         }
     }
     
-    func startStopDetectionTimer(){
+    func resetTimer(){
         if let t = timer{
             t.invalidate()
         }
         
-        timer = NSTimer.scheduledTimerWithTimeInterval(10, target: self, selector: Selector("timerFired"), userInfo: nil, repeats: false)
+        log("Stop Detection Timer Started")
+        timer = NSTimer.scheduledTimerWithTimeInterval(stationaryTimeout, target: self, selector: Selector("timerFired"), userInfo: nil, repeats: false)
     }
     
     // Stop Frequent Updates
@@ -145,7 +155,16 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
         self.stopFrequentLocationUpdates()
     }
     
-    func showNotification(let coordinate : CLLocationCoordinate2D, let meters: CLLocationDistance){
+    func showNotification(let text: String){
+        let notification = UILocalNotification()
+        notification.fireDate = NSDate(timeIntervalSinceNow: 1)
+        
+        notification.alertBody = text
+        
+        UIApplication.sharedApplication().scheduleLocalNotification(notification)
+    }
+    
+    func showLocationNotification(let coordinate : CLLocationCoordinate2D, let meters: CLLocationDistance){
         log("Location updated: \(coordinate.latitude), \(coordinate.longitude)")
         let notification = UILocalNotification()
         notification.fireDate = NSDate(timeIntervalSinceNow: 1)
@@ -153,8 +172,6 @@ class ViewController: UIViewController, CLLocationManagerDelegate{
         notification.alertBody = "Latitude: \(coordinate.latitude), Longitude: \(coordinate.longitude), Disnance: \(meters)"
         
         UIApplication.sharedApplication().scheduleLocalNotification(notification)
-        
-        lastLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
     }
     
     func log(let logStr: String){
