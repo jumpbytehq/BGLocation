@@ -101,6 +101,11 @@
 					7EFCA8CA1CE6351A0043D5E9 = {
 						CreatedOnToolsVersion = 7.2;
 						DevelopmentTeam = VDRAD3Z75Z;
+						SystemCapabilities = {
+							com.apple.BackgroundModes = {
+								enabled = 1;
+							};
+						};
 					};
 				};
 			};
